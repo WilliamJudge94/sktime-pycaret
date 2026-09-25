@@ -1,8 +1,8 @@
 """Module to get datasets in pycaret"""
 
 from typing import Optional
+from urllib.error import HTTPError
 
-import requests
 from skbase.utils.dependencies import _check_soft_dependencies
 
 from pycaret.utils._dependencies import _install_pycaret_extra_msg
@@ -127,10 +127,15 @@ def get_data(
             y = data[0]
             X = data[1]
             data = pd.concat([y, X], axis=1)
-    elif requests.head(complete_address).status_code == 200:
-        data = pd.read_csv(complete_address)
     else:
-        raise ValueError("Data could not be read. Please check your inputs...")
+        # Reading the CSV already reports HTTP errors. A separate HEAD request
+        # doubles the number of network round trips for remote datasets.
+        try:
+            data = pd.read_csv(complete_address)
+        except HTTPError as error:
+            raise ValueError(
+                "Data could not be read. Please check your inputs..."
+            ) from error
 
     data = data.infer_objects()
 
