@@ -1,7 +1,39 @@
+from urllib.error import HTTPError
+
 import pandas as pd
 import pytest
 
 from pycaret.datasets import get_data
+
+
+def test_get_data_remote_uses_single_request(monkeypatch):
+    expected = pd.DataFrame({"value": [1, 2]})
+    addresses = []
+
+    def read_csv(address):
+        addresses.append(address)
+        return expected.copy()
+
+    def unexpected_head(*args, **kwargs):
+        pytest.fail("Remote datasets should not require a HEAD request")
+
+    monkeypatch.setattr(pd, "read_csv", read_csv)
+    monkeypatch.setattr("requests.head", unexpected_head)
+    actual = get_data("example", address="https://example.com", verbose=False)
+
+    pd.testing.assert_frame_equal(actual, expected)
+    assert addresses == ["https://example.com/example.csv"]
+
+
+def test_get_data_remote_http_error(monkeypatch):
+    def read_csv(address):
+        raise HTTPError(address, 404, "Not Found", None, None)
+
+    monkeypatch.setattr(pd, "read_csv", read_csv)
+    with pytest.raises(
+        ValueError, match="Data could not be read. Please check your inputs"
+    ):
+        get_data("missing", address="https://example.com", verbose=False)
 
 
 def test_datasets():
