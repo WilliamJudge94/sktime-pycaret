@@ -29,9 +29,14 @@ def test_benchmark_sp_to_use_using_auto(
     expected_per_correct_multiple,
     expected_per_correct_harmonics,
     expected_per_correct_multiple_no_harmonics,
+    monkeypatch,
 ):
     """Benchmark auto detection of seasonal periods. Any future changes must
     beat this benchmark."""
+
+    # This benchmark never fits a model. Building all model containers in every
+    # setup is unrelated to seasonal detection and dominates its runtime.
+    monkeypatch.setattr(TSForecastingExperiment, "_set_all_models", lambda self: self)
 
     properties = get_data("index", folder="time_series/seasonal", verbose=False)
 
